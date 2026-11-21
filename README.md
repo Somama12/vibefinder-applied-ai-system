@@ -313,7 +313,7 @@ With `--reliable`, the system validates the request and catalog, checks whether 
 
 The match fraction is `base_score / maximum_score_for_supplied_features`. It is a heuristic, **not a calibrated probability or confidence estimate**. The gate is applied before diversity; the displayed selection score can be lower after an artist penalty. The coverage check requires the requested genre to exist somewhere in the catalog, but eligible recommendations can include other genres.
 
-The exact implementation diagram is in [architecture.mmd](architecture.mmd):
+The exact implementation diagram is in [diagrams/architecture.mmd](diagrams/architecture.mmd):
 
 ```mermaid
 flowchart TD
@@ -556,7 +556,7 @@ I used Codex to generate the implementation, tests, and documentation, and I red
 | Five additional attributes and AI workflow | CSV, scoring weights, `ai_interactions.md` |
 | Diversity, modes, formatted table | `recommend_songs`, `RankingStrategy`, `format_table` |
 | Project 4 base, substantial extension, demo | Project 4 section; `src/reliability.py`; CLI examples |
-| Architecture source | `architecture.mmd` |
+| Architecture source | `diagrams/architecture.mmd` |
 | Guardrails and evaluation bonus | `tests/test_extended.py`; `src/evaluate.py` |
 | AI collaboration and design reflection | `ai_interactions.md`; `model_card.md` |
 
