@@ -313,29 +313,50 @@ With `--reliable`, the system validates the request and catalog, checks whether 
 
 The match fraction is `base_score / maximum_score_for_supplied_features`. It is a heuristic, **not a calibrated probability or confidence estimate**. The gate is applied before diversity; the displayed selection score can be lower after an artist penalty. The coverage check requires the requested genre to exist somewhere in the catalog, but eligible recommendations can include other genres.
 
-The exact implementation diagram is in [diagrams/architecture.mmd](diagrams/architecture.mmd):
+The [architecture diagram](diagrams/architecture.mmd) shows how the CLI loads preferences and the song catalog, then selects the baseline or reliable workflow. The reliable workflow checks catalog coverage, applies the match threshold before ranking, and audits the ranked output. The evaluation harness calls both workflows directly and reports which behavior checks pass.
 
 ```mermaid
 flowchart TD
-    A[CLI: built-in profile or JSON preferences] --> B[Validate preferences and options]
-    C[data/songs.csv] --> D[Parse numbers and validate catalog]
-    B --> E{Reliable mode?}
-    D --> E
-    E -->|No: Project 3| H[Strategy weights and per-song scoring]
-    E -->|Yes: Project 4| F{Requested genre represented?}
-    F -->|No| G[Abstain with coverage message]
-    F -->|Yes| I[Score all songs and gate normalized match]
-    I --> H
-    H --> J[Greedy ranking with artist repeat penalty]
-    J --> K{Reliable mode?}
-    K -->|Yes| L[Audit membership, IDs, score, order and reasons]
-    L --> M[OK, partial or abstained report]
-    M --> N[Formatted table and optional JSON audit events]
-    K -->|No| N
-    G --> N
-    O[Evaluation harness: 9 predefined scenarios] --> F
-    B -->|Invalid| P[Error message and exit code 2]
-    D -->|Invalid| P
+    subgraph CLI["Command-line app · src.main"]
+        Input["CLI options and built-in or JSON preferences"] --> Read["Parse options and read preferences"]
+        Read --> Load["Load and validate catalog CSV"]
+        Catalog["Default or custom catalog CSV"] --> Load
+        Load --> Mode{"Reliable mode enabled?"}
+        Report["Print status and message"]
+        Report --> Trace["Write JSON audit events if requested"]
+        Trace --> Table["Print recommendation table when rows exist"]
+        Error["Print error and exit with code 2"]
+    end
+
+    subgraph Engine["Recommendation engine"]
+        Baseline["Validate request, score all songs, and rank with artist repeat penalty"]
+        Validate["Validate preferences, options, and catalog"]
+        Validate --> Coverage{"Requested genre exists in the catalog?"}
+        Coverage -->|No| Abstain["Return abstained with zero rows"]
+        Coverage -->|Yes| Gate["Score all songs and keep matches at or above the threshold"]
+        Gate --> Rank["Score and rank eligible songs with the same ranking function"]
+        Rank --> Audit["Audit catalog membership, count, unique IDs, scores, order, threshold, and explanations"]
+        Audit --> Outcome["Return ok, partial, or abstained based on row count"]
+    end
+
+    Mode -->|No| Baseline
+    Mode -->|Yes| Validate
+    Baseline --> Table
+    Outcome --> Report
+    Abstain --> Report
+    Read -->|Invalid input| Error
+    Load -->|Invalid or unreadable catalog| Error
+    Baseline -->|Validation fails| Error
+    Validate -->|Validation fails| Error
+    Audit -->|Audit fails| Error
+    Trace -->|Write fails| Error
+
+    subgraph Evaluation["Separate evaluation harness · src.evaluate"]
+        Cases["Load default catalog and run nine predefined scenarios"]
+        Cases --> Results["Check results or expected errors and print pass/fail summary"]
+    end
+    Cases -. calls baseline ranking .-> Baseline
+    Cases -. calls reliable pipeline .-> Validate
 ```
 
 ### Three end-to-end examples
