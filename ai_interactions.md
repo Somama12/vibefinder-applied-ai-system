@@ -60,7 +60,7 @@ Accepted design: configurable strategy weights rather than duplicate scoring fun
 
 ## Reliability event logs
 
-The actual JSON event logs are committed in [pop_trace.json](examples/pop_trace.json), [lofi_trace.json](examples/lofi_trace.json), and [edm_trace.json](examples/edm_trace.json). They contain validation outcomes, candidate counts, selected IDs and scores, not hidden model reasoning. They can be regenerated with the commands in the README. The evaluation output is saved in [evaluation.txt](examples/evaluation.txt).
+The actual JSON event logs are committed in [pop_trace.json](examples/pop_trace.json), [lofi_trace.json](examples/lofi_trace.json), and [edm_trace.json](examples/edm_trace.json). They contain validation outcomes, candidate counts, selected IDs and scores, not hidden model reasoning. To regenerate a trace, run `python -m src.main --profile pop --reliable --k 3 --trace examples/pop_trace.json`. For the other profiles, substitute `lofi` or `edm` in both arguments. The evaluation output is saved in [evaluation.txt](examples/evaluation.txt).
 
 ## Limitations and next steps
 

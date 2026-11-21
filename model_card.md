@@ -34,15 +34,21 @@ The catalog has only 20 illustrative tracks and overrepresents lofi relative to 
 
 The artist penalty improves exposure diversity by preventing near-identical tracks from one artist from automatically occupying the first two slots. In the EDM example, top-two unique artists increase from one to two. This is a modest variety mechanism; it neither measures nor guarantees fairness across demographic groups and does not eliminate genre filter bubbles. The reliable mode may abstain unnecessarily for unfamiliar genre labels, and its threshold needs real feedback for calibration.
 
+### Potential Misuse and Mitigations
+
+Someone could present the synthetic catalog as real music data or use the score to claim what a listener will enjoy. The project labels the catalog as illustrative and documents the score as a weighted match to the supplied preferences. A real deployment would use verified metadata and test its recommendations with consenting listeners before making claims about listener satisfaction.
+
 ## 7. Evaluation
 
-Three full profile outputs with five recommendations each are included as text in the README. The tests cover the original object API, loading, ordering, explanations, input bounds, duplicate IDs, invalid CSV, every added feature, and corrupted output. The evaluation script checks nine named behaviors. The recorded run passed 35 pytest tests and 9/9 evaluation scenarios.
+Three full profile outputs with five recommendations each are included as text in the README. The tests cover the original object API, loading, ordering, explanations, input bounds, duplicate IDs, invalid CSV, every added feature, and corrupted output. The evaluation script checks nine named behaviors. The final repository checks passed 35 pytest tests and 9/9 evaluation scenarios.
 
 Pairwise profile comparisons:
 
 - **Pop vs. lofi:** Golden Hour Ride leads pop, while Paper Moon Loop leads lofi. The lofi profile prefers lower energy, slower tempo, higher acousticness and instrumentalness, and lower popularity. Their top-five lists have no shared songs.
 - **Pop vs. EDM:** The pop list starts with happy songs around 120 BPM. EDM starts with intense, highly danceable tracks around 145 BPM. Gym Hero appears in both top-five lists because its pop genre helps one profile while its intense mood and high energy help the other.
 - **Lofi vs. EDM:** Lofi favors Paper Moon Loop, Library Rain, and Midnight Coding; EDM favors Electric Horizon, Bassline Orbit, and Festival Afterglow. Their targets for energy, tempo and acousticness differ substantially. Their top-five lists have no shared songs.
+
+### What Surprised Me During Testing
 
 An instructive result is Gym Hero ranking third for happy pop despite an intense mood. With genre weight 2 and mood weight 1, the genre match can outweigh the mismatch. In mood-first mode, Rooftop Lights becomes third. Halving genre's weight and doubling energy's weight also moves Rooftop Lights ahead because its energy is closer to 0.8. These are sensitivity results, not claims of improved listener satisfaction.
 
@@ -54,7 +60,7 @@ Baseline vs. reliability behavior:
 | --- | --- | --- |
 | Opera/dramatic/energy 0.5 | Returns five songs despite missing opera coverage | Zero songs; explicit coverage abstention |
 | Pop, threshold 1.0 | Baseline has no quality gate | Zero songs; no perfect match |
-| Pop, k=20 | Returns 20 candidates | Partial list of qualifying candidates |
+| Pop, k=20 | Returns 20 candidates | Returns 3 of 20 at the 0.70 match threshold |
 | Energy 1.4 | Validation error | Validation error |
 
 Audit checks reject altered titles, incorrect scores and generic explanations. They share the scorer with ranking, so they catch corruption and consistency problems but cannot independently prove that the scoring formula itself models taste correctly. Tests are behavioral checks on handcrafted examples, not unbiased generalization estimates.
@@ -67,7 +73,9 @@ Add more genres and culturally varied recordings with verified metadata. Use lis
 
 My biggest takeaway from this project is that a recommendation reflects the rules I give the system. A song can seem like a good suggestion without the program actually understanding music. For example, Gym Hero ranks third for the happy-pop profile even though its mood is intense. The genre match is worth more than the missing mood point. Switching to mood-first scoring moves Rooftop Lights ahead of it. That example makes the effect of the weights much clearer to me than just looking at the formula.
 
-I used Codex to help complete the implementation, generate additional song attributes, write tests, and explain the results. I supplied the assignment and the correct CodePath starter repository. When the initial plan was to create a standalone project, I redirected the work to the assigned starter so the original songs and interfaces would be preserved. The project uses AI's proposed Strategy design to keep the different scoring modes organized around one shared scorer. AI generated most of the code and documentation, so I do not want to describe this as work I completed without assistance.
+### AI Collaboration
+
+I used Codex to help complete the implementation, generate additional song attributes, write tests, and explain the results. I supplied the assignment and the correct CodePath starter repository. When the initial plan was to create a standalone project, I redirected the work to the assigned starter so the original songs and interfaces would be preserved. I kept Codex's suggestion to use the existing reliability extension for Project 4 because it builds directly on the Module 3 recommender and changes which songs reach the listener. I also revised the proposed workflow. When Codex outlined several tasks at once, I asked to go one step at a time and requested separate checks for the full, partial, and unsupported-genre cases. AI generated most of the code and documentation, so I do not want to describe this as work I completed without assistance.
 
 One place where the AI-generated work needed checking was the additional-feature requirement. Valence, danceability, and acousticness were already in the starter, so they could not count as five new attributes. The completed project adds instrumentalness, popularity, release year, duration, and live performance instead. Codex also checked that the original song values stayed intact and ran the tests. Those checks passed all 35 tests and all nine evaluation scenarios. These were agent-run checks, not a separate manual test session by me.
 

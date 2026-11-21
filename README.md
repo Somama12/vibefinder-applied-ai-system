@@ -1,8 +1,45 @@
-# Music Recommender Simulation — VibeFinder
+# VibeFinder
 
-This project turns a listener's preferences into ranked song suggestions and shows the math behind each result. Project 3 implements an explainable content-based recommender. Project 4 extends it with a reliability pipeline that validates data, checks catalog coverage, withholds weak matches, and audits the output.
+VibeFinder recommends songs from a 20-track classroom catalog and explains how each track scored against a listener's preferences. Project 4 adds a reliability mode that filters weak matches, checks the recommendations, and returns fewer tracks when the catalog cannot fill the request.
 
-Based on [CodePath's Music Recommender Simulation starter](https://github.com/codepath/ai110-module3show-musicrecommendersimulation-starter). The original starter supplied 10 songs, placeholder scoring/loading functions, a CLI, and two object-interface tests. This version preserves the original 10 rows and their existing values, adds 10 songs and five new attributes, and implements both starter interfaces.
+## Base project
+
+The original Module 3 project, [Music Recommender Simulation (VibeFinder)](https://github.com/Somama12/ai110-module3show-musicrecommendersimulation-starter), ranked tracks using weighted comparisons of genre, mood, energy, and other attributes. It provided pop, lofi, and EDM profiles, displayed the contribution of each feature, and let users vary the ranking weights and artist repetition penalty.
+
+The Module 3 implementation was built from the [CodePath starter](https://github.com/codepath/ai110-module3show-musicrecommendersimulation-starter). It preserved the starter's 10 song rows and object interfaces, then added 10 illustrative tracks and five scoring attributes.
+
+[Setup](#getting-started) · [Architecture](#architecture) · [Demo](#end-to-end-demo) · [Testing](#evaluation-results) · [Model card](model_card.md) · [Portfolio](PORTFOLIO.md)
+
+## Getting Started
+
+Use Python 3.10 or newer. The CLI and evaluation harness use the standard library. Install the requirements to run the pytest suite.
+
+1. Clone the Project 4 repository.
+
+   ```bash
+   git clone https://github.com/Somama12/vibefinder-applied-ai-system.git
+   cd vibefinder-applied-ai-system
+   ```
+
+2. Set up the environment and install the test dependency.
+
+   ```bash
+   python3 -m venv .venv
+   source .venv/bin/activate
+   python -m pip install -r requirements.txt
+   ```
+
+   On Windows PowerShell, use `py -m venv .venv` and activate with `.venv\Scripts\Activate.ps1`.
+
+3. Run reliable mode and the automated checks.
+
+   ```bash
+   python -m src.main --profile pop --reliable --k 3
+   python -m pytest -q
+   python -m src.evaluate
+   ```
+
+Save custom preferences as JSON, for example `{"genre":"pop","mood":"happy","energy":0.8}`, and pass the file with `--prefs path/to/profile.json`. It overrides the named profile. Run `python -m src.main --help` for all options.
 
 ## How The System Works
 
@@ -48,47 +85,10 @@ The maximum base score for a complete profile is 6.5 in each mode. Popularity is
 
 The Strategy pattern separates weight configurations from scoring. `RankingStrategy` objects in `STRATEGIES` share the same scoring procedure, making modes easy to compare without copying the algorithm. The CLI's default artist penalty is 0.6; the function's default is 0 for straightforward baseline use.
 
-## Getting Started
+## Module 3 Baseline Examples
 
-Requires Python 3.10 or newer. The app and evaluation script use only the standard library; pytest is the only test dependency.
-
-1. Clone your fork and enter it:
-
-   ```bash
-   git clone https://github.com/Somama12/ai110-module3show-musicrecommendersimulation-starter.git
-   cd ai110-module3show-musicrecommendersimulation-starter
-   ```
-
-2. Create and activate an environment:
-
-   ```bash
-   python3 -m venv .venv
-   source .venv/bin/activate
-   # Windows: .venv\Scripts\activate
-   ```
-
-3. Install the test dependency and run the system:
-
-   ```bash
-   python -m pip install -r requirements.txt
-   python -m src.main
-   python -m src.main --profile lofi
-   python -m src.main --profile edm --k 3
-   python -m src.main --profile pop --mode mood-first
-   python -m src.main --profile pop --mode energy-first
-   python -m src.main --profile edm --artist-penalty 0
-   ```
-
-4. Run the automated checks:
-
-   ```bash
-   python -m pytest -q
-   python -m src.evaluate
-   ```
-
-To use a custom profile, save a JSON object such as `{"genre":"pop","mood":"happy","energy":0.8}` and pass `--prefs path/to/profile.json`. `--prefs` overrides the named profile. Invalid inputs print an error and exit with status 2. Use `python -m src.main --help` to see all options.
-
-## Sample Recommendation Output
+<details>
+<summary>Original pop, lofi, and EDM runs</summary>
 
 These are captured outputs from the implemented CLI, including the actual score reasons. Each experiment requests five recommendations.
 
@@ -293,7 +293,9 @@ Profile: edm | mode: genre-first
                                                          penalty (-0.000); base 3.908
 ```
 
-## Experiments You Tried
+</details>
+
+## Ranking Experiments
 
 All comparisons use the same catalog and a 0.6 artist penalty unless stated otherwise.
 
@@ -312,6 +314,8 @@ The base is the Project 3 weighted recommender above. The substantial extension 
 With `--reliable`, the system validates the request and catalog, checks whether the requested genre exists, removes songs whose normalized base score is below `--min-match` (default 0.70), ranks eligible songs with the artist penalty, and audits membership, duplicate IDs, scores, order, and explanations. It returns `ok`, `partial`, or `abstained`. It never pads the list with weak songs merely to reach k. An optional JSON trace records factual processing events, counts, selected IDs and scores.
 
 The match fraction is `base_score / maximum_score_for_supplied_features`. It is a heuristic, **not a calibrated probability or confidence estimate**. The gate is applied before diversity; the displayed selection score can be lower after an artist penalty. The coverage check requires the requested genre to exist somewhere in the catalog, but eligible recommendations can include other genres.
+
+### Architecture
 
 The [architecture diagram](diagrams/architecture.mmd) shows how the CLI loads preferences and the song catalog, then selects the baseline or reliable workflow. The reliable workflow checks catalog coverage, applies the match threshold before ranking, and audits the ranked output. The evaluation harness calls both workflows directly and reports which behavior checks pass.
 
@@ -359,12 +363,16 @@ flowchart TD
     Cases -. calls reliable pipeline .-> Validate
 ```
 
-### Three end-to-end examples
+## End-to-end demo
 
-These invoke the reliability pipeline and write audit logs. The full baseline outputs above make the profiles easy to compare; the reliable examples below request three results.
+The following outputs were captured by running the CLI against the committed catalog.
+
+### Full result for three pop recommendations
+
+The built-in pop profile requests happy tracks with an energy target of 0.8. All three requested slots have eligible matches.
 
 ```bash
-python -m src.main --profile pop --reliable --k 3 --trace examples/pop_trace.json
+python -m src.main --profile pop --reliable --k 3
 ```
 
 ```text
@@ -407,97 +415,57 @@ Status: ok | 3 of 3 requested songs meet match >= 0.70.
                                                          penalty (-0.000); base 5.231
 ```
 
+### Partial result for twenty pop recommendations
+
+The same profile requests 20 tracks. The match gate withholds the 17 tracks below 0.70.
+
 ```bash
-python -m src.main --profile lofi --reliable --k 3 --trace examples/lofi_trace.json
+python -m src.main --profile pop --reliable --k 20
 ```
 
 ```text
 Loaded songs: 20
-Profile: lofi | mode: genre-first
-Status: ok | 3 of 3 requested songs meet match >= 0.70.
+Profile: pop | mode: genre-first
+Status: partial | 3 of 20 requested songs meet match >= 0.70.
 #   Song / Artist                                 Score  Reasons
 -------------------------------------------------------------------------------------------------------------------
-1   Paper Moon Loop / Quiet Current               6.466  genre match (lofi) (+2.000); mood match (chill) (+1.000);
-                                                         energy 0.36 vs target 0.35 (+0.990); tempo_bpm 74 vs
-                                                         target 75 (+0.497); valence 0.54 vs target 0.55 (+0.247);
-                                                         danceability 0.51 vs target 0.5 (+0.247); acousticness
-                                                         0.84 vs target 0.85 (+0.247); instrumentalness 0.93 vs
-                                                         target 0.9 (+0.242); popularity 28 vs target 30 (+0.245);
-                                                         release_year 2020 vs target 2020 (+0.250);
-                                                         duration_seconds 182 vs target 180 (+0.249);
+1   Golden Hour Ride / Daybreak Club              6.466  genre match (pop) (+2.000); mood match (happy) (+1.000);
+                                                         energy 0.79 vs target 0.8 (+0.990); tempo_bpm 121 vs
+                                                         target 120 (+0.497); valence 0.86 vs target 0.85 (+0.247);
+                                                         danceability 0.81 vs target 0.8 (+0.247); acousticness
+                                                         0.21 vs target 0.2 (+0.247); instrumentalness 0.04 vs
+                                                         target 0.05 (+0.247); popularity 76 vs target 80 (+0.240);
+                                                         release_year 2022 vs target 2022 (+0.250);
+                                                         duration_seconds 208 vs target 210 (+0.249);
                                                          live_performance 0 vs target 0 (+0.250); artist repeat
                                                          penalty (-0.000); base 6.466
 
-2   Library Rain / Paper Lanterns                 6.412  genre match (lofi) (+2.000); mood match (chill) (+1.000);
-                                                         energy 0.35 vs target 0.35 (+1.000); tempo_bpm 72 vs
-                                                         target 75 (+0.492); valence 0.6 vs target 0.55 (+0.238);
-                                                         danceability 0.58 vs target 0.5 (+0.230); acousticness
-                                                         0.86 vs target 0.85 (+0.247); instrumentalness 0.98 vs
-                                                         target 0.9 (+0.230); popularity 24 vs target 30 (+0.235);
-                                                         release_year 2021 vs target 2020 (+0.247);
-                                                         duration_seconds 195 vs target 180 (+0.243);
+2   Sunrise City / Neon Echo                      6.459  genre match (pop) (+2.000); mood match (happy) (+1.000);
+                                                         energy 0.82 vs target 0.8 (+0.980); tempo_bpm 118 vs
+                                                         target 120 (+0.494); valence 0.84 vs target 0.85 (+0.247);
+                                                         danceability 0.79 vs target 0.8 (+0.247); acousticness
+                                                         0.18 vs target 0.2 (+0.245); instrumentalness 0.05 vs
+                                                         target 0.05 (+0.250); popularity 82 vs target 80 (+0.245);
+                                                         release_year 2022 vs target 2022 (+0.250);
+                                                         duration_seconds 210 vs target 210 (+0.250);
                                                          live_performance 0 vs target 0 (+0.250); artist repeat
-                                                         penalty (-0.000); base 6.412
+                                                         penalty (-0.000); base 6.459
 
-3   Midnight Coding / LoRoom                      6.337  genre match (lofi) (+2.000); mood match (chill) (+1.000);
-                                                         energy 0.42 vs target 0.35 (+0.930); tempo_bpm 78 vs
-                                                         target 75 (+0.492); valence 0.56 vs target 0.55 (+0.247);
-                                                         danceability 0.62 vs target 0.5 (+0.220); acousticness
-                                                         0.71 vs target 0.85 (+0.215); instrumentalness 0.95 vs
-                                                         target 0.9 (+0.238); popularity 32 vs target 30 (+0.245);
-                                                         release_year 2020 vs target 2020 (+0.250);
-                                                         duration_seconds 180 vs target 180 (+0.250);
+3   Gym Hero / Max Pulse                          5.231  genre match (pop) (+2.000); mood mismatch (intense)
+                                                         (+0.000); energy 0.93 vs target 0.8 (+0.870); tempo_bpm
+                                                         132 vs target 120 (+0.467); valence 0.77 vs target 0.85
+                                                         (+0.230); danceability 0.88 vs target 0.8 (+0.230);
+                                                         acousticness 0.05 vs target 0.2 (+0.212); instrumentalness
+                                                         0.02 vs target 0.05 (+0.242); popularity 85 vs target 80
+                                                         (+0.237); release_year 2023 vs target 2022 (+0.247);
+                                                         duration_seconds 200 vs target 210 (+0.245);
                                                          live_performance 0 vs target 0 (+0.250); artist repeat
-                                                         penalty (-0.000); base 6.337
+                                                         penalty (-0.000); base 5.231
 ```
 
-```bash
-python -m src.main --profile edm --reliable --k 3 --trace examples/edm_trace.json
-```
+### Abstention for an unsupported genre
 
-```text
-Loaded songs: 20
-Profile: edm | mode: genre-first
-Status: ok | 3 of 3 requested songs meet match >= 0.70.
-#   Song / Artist                                 Score  Reasons
--------------------------------------------------------------------------------------------------------------------
-1   Electric Horizon / Pulse Arcade               6.470  genre match (edm) (+2.000); mood match (intense) (+1.000);
-                                                         energy 0.96 vs target 0.95 (+0.990); tempo_bpm 145 vs
-                                                         target 145 (+0.500); valence 0.65 vs target 0.65 (+0.250);
-                                                         danceability 0.96 vs target 0.95 (+0.247); acousticness
-                                                         0.03 vs target 0.05 (+0.245); instrumentalness 0.72 vs
-                                                         target 0.7 (+0.245); popularity 68 vs target 65 (+0.242);
-                                                         release_year 2023 vs target 2023 (+0.250);
-                                                         duration_seconds 240 vs target 240 (+0.250);
-                                                         live_performance 1 vs target 1 (+0.250); artist repeat
-                                                         penalty (-0.000); base 6.470
-
-2   Bassline Orbit / Signal Bloom                 6.138  genre match (edm) (+2.000); mood match (intense) (+1.000);
-                                                         energy 0.92 vs target 0.95 (+0.970); tempo_bpm 150 vs
-                                                         target 145 (+0.486); valence 0.62 vs target 0.65 (+0.242);
-                                                         danceability 0.91 vs target 0.95 (+0.240); acousticness
-                                                         0.06 vs target 0.05 (+0.247); instrumentalness 0.8 vs
-                                                         target 0.7 (+0.225); popularity 58 vs target 65 (+0.232);
-                                                         release_year 2024 vs target 2023 (+0.247);
-                                                         duration_seconds 235 vs target 240 (+0.248);
-                                                         live_performance 0 vs target 1 (+0.000); artist repeat
-                                                         penalty (-0.000); base 6.138
-
-3   Festival Afterglow / Pulse Arcade             5.842  genre match (edm) (+2.000); mood match (intense) (+1.000);
-                                                         energy 0.93 vs target 0.95 (+0.980); tempo_bpm 142 vs
-                                                         target 145 (+0.492); valence 0.68 vs target 0.65 (+0.242);
-                                                         danceability 0.94 vs target 0.95 (+0.247); acousticness
-                                                         0.04 vs target 0.05 (+0.247); instrumentalness 0.75 vs
-                                                         target 0.7 (+0.237); popularity 66 vs target 65 (+0.247);
-                                                         release_year 2023 vs target 2023 (+0.250);
-                                                         duration_seconds 245 vs target 240 (+0.248);
-                                                         live_performance 1 vs target 1 (+0.250); artist repeat
-                                                         penalty (-0.600); base 6.442
-```
-
-### Guardrail examples
-
-Unsupported genre input: `{"genre":"opera","mood":"dramatic","energy":0.5}`. The baseline would still return five songs; reliable mode reports the missing coverage instead.
+The [custom input](examples/unsupported.json) is `{"genre":"opera","mood":"dramatic","energy":0.5}`. The baseline returns five ranked tracks for this input. Reliable mode checks genre coverage and returns zero.
 
 ```bash
 python -m src.main --prefs examples/unsupported.json --reliable
@@ -509,10 +477,12 @@ Profile: unsupported.json | mode: genre-first
 Status: abstained | Requested genre is not represented in the catalog.
 ```
 
-Invalid input: energy 1.4 is outside 0–1. Both modes reject it; no recommendations are emitted. Exit code: 2.
+### Invalid input guardrail
+
+The [invalid profile](examples/invalid.json) sets energy to 1.4. Validation rejects it with exit code 2.
 
 ```bash
-python -m src.main --prefs examples/invalid.json --reliable
+python -u -m src.main --prefs examples/invalid.json --reliable
 ```
 
 ```text
@@ -521,21 +491,9 @@ Profile: invalid.json | mode: genre-first
 Error: energy must be between 0 and 1
 ```
 
-Strict threshold: no track exactly matches every pop preference, so a threshold of 1 produces abstention.
+To write a JSON audit log, add `--trace path/to/trace.json` to a reliable-mode command. For example, `python -m src.main --profile pop --reliable --k 3 --trace examples/pop_trace.json` reproduces the [pop trace](examples/pop_trace.json) with validation outcomes, candidate counts, and selected IDs and scores.
 
-```bash
-python -m src.main --profile pop --reliable --min-match 1
-```
-
-```text
-Loaded songs: 20
-Profile: pop | mode: genre-first
-Status: abstained | 0 of 5 requested songs meet match >= 1.00.
-```
-
-Requesting `--profile pop --reliable --k 20` demonstrates a partial result: only songs above the threshold are returned. Output-audit tests also deliberately alter a score, a title, and an explanation; each altered output is rejected.
-
-### Evaluation results
+## Evaluation results
 
 ```bash
 python -m src.evaluate
@@ -555,7 +513,9 @@ PASS | mode switch: changes top-three selection
 Evaluation: 9/9 passed
 ```
 
-The pytest suite additionally passes 35 tests, including the original two starter tests, invalid inputs, NaN/infinity, duplicate IDs, malformed CSV, deterministic ties, all five added features, and output tampering. Run commands above to reproduce. Passing tests show implementation consistency, not that people will enjoy the songs.
+The pytest suite passed **35 tests**. It covers the original object interface, malformed CSV, input bounds, deterministic ranking, and deliberately altered titles, scores, and explanations. The evaluation harness checks nine predefined scenarios and prints a pass/fail summary.
+
+On the classroom catalog, the coverage check caught the baseline's behavior of returning tracks for an unavailable genre. The match threshold also produced a clear partial result when only three tracks qualified. The tests measure implementation behavior on these examples. Listener satisfaction would require feedback from real users.
 
 ## Limitations and Risks
 
@@ -565,20 +525,20 @@ The catalog is small, synthetic, English-labeled, and uneven across genres. Genr
 
 My biggest takeaway is that the scoring rules shape what looks like a good recommendation. Gym Hero ranks third for the happy-pop profile even though its mood is intense, because the genre match carries more weight. Switching modes changes that result. The artist-diversity experiment makes another tradeoff visible: a slightly lower-scoring song can give a different artist a place near the top. These examples help explain why a recommendation score is not the same thing as knowing what someone will enjoy.
 
-I used Codex to generate the implementation, tests, and documentation, and I redirected the initial standalone-project plan by providing the assigned CodePath starter. The agent verified that the original song data was preserved and ran 35 passing tests and nine passing evaluation scenarios. I would next try a larger catalog and real listener feedback to improve the weights and reliability threshold. My full reflection is in the [model card](model_card.md#9-personal-reflection), and the [AI collaboration log](ai_interactions.md) records which work and checks were completed with AI assistance.
+The [model card](model_card.md#9-personal-reflection) records my collaboration with AI and the tradeoffs I would revisit. The [AI collaboration log](ai_interactions.md) documents the development and verification work.
 
 ## Files and rubric evidence
 
 | Requirement | Evidence |
 | --- | --- |
 | Project 3 explanation, data, scoring, ranking | This README; `data/songs.csv`; `src/recommender.py` |
-| Three profiles and explanations | Captured code blocks above; `src/profiles.py` |
+| Project 4 execution evidence | [Full, partial, and abstained runs](#end-to-end-demo) |
 | Model card | `model_card.md` |
 | Five additional attributes and AI workflow | CSV, scoring weights, `ai_interactions.md` |
 | Diversity, modes, formatted table | `recommend_songs`, `RankingStrategy`, `format_table` |
 | Project 4 base, substantial extension, demo | Project 4 section; `src/reliability.py`; CLI examples |
-| Architecture source | `diagrams/architecture.mmd` |
+| Architecture source | [Mermaid source](diagrams/architecture.mmd) |
 | Guardrails and evaluation bonus | `tests/test_extended.py`; `src/evaluate.py` |
 | AI collaboration and design reflection | `ai_interactions.md`; `model_card.md` |
 
-No Project 4 RAG, runtime-agent, or fine-tuning bonus is claimed. The additional Project 4 bonus implemented is the evaluation harness.
+The optional evaluation-harness stretch is implemented in `src/evaluate.py`.
